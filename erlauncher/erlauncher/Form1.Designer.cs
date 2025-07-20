@@ -450,7 +450,7 @@ namespace erlauncher
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button MinusButton;
         private System.Windows.Forms.Button rmGroupButton;
-        private System.Windows.Forms.Button CancelButton;
+        private new System.Windows.Forms.Button CancelButton;
         private System.Windows.Forms.Label groupLabel;
         private System.Windows.Forms.Button getGameButton;
         private System.Windows.Forms.OpenFileDialog openFileDialog1;

@@ -12,7 +12,9 @@ using System.Xml.Serialization;
 using System.Configuration;
 using System.IO;
 using System.Runtime.InteropServices;
-
+using erlauncher.Services;
+using GameInfo = erlauncher.Models.GameInfo;
+using FolderInfo = erlauncher.Models.FolderInfo;
 namespace erlauncher
 {
     public partial class Form1 : Form
@@ -113,7 +115,11 @@ namespace erlauncher
             }
             else
             {
-                groupTree.SelectedNode = groupTree.Nodes[0].Nodes[FolderList.FindIndex(x => x.Name == selectedGroupName) - 1];
+                int folderIndex = FolderList.FindIndex(x => x.Name == selectedGroupName);
+                if (folderIndex > 0 && folderIndex - 1 < groupTree.Nodes[0].Nodes.Count)
+                {
+                    groupTree.SelectedNode = groupTree.Nodes[0].Nodes[folderIndex - 1];
+                }
             }
         }
         private void ResetListView(string groupName)
@@ -125,7 +131,7 @@ namespace erlauncher
 
             foreach (var g in selectedFolder.GameList)
             {
-                var lvi = new ListViewItem(g.displayName, g.id);
+                var lvi = new ListViewItem(g.DisplayName, g.Id);
                 lvi.Tag = g.Path;
                 listView1.Items.Add(lvi);
             }
@@ -192,12 +198,12 @@ namespace erlauncher
                         rmGameList.Add(gi);
                         continue;
                     }
-                    if (gi.imagepath!=null && !File.Exists(gi.imagepath))
+                    if (gi.ImagePath!=null && !File.Exists(gi.ImagePath))
                     {
-                        MessageBox.Show($"{gi.imagepath}が見つかりません。\n表示画像を設定しなおしてください。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        gi.imagepath = null;
+                        MessageBox.Show($"{gi.ImagePath}が見つかりません。\n表示画像を設定しなおしてください。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        gi.ImagePath = null;
                     }
-                    gi.id = idx++;
+                    gi.Id = idx++;
                     var icon = Icon.ExtractAssociatedIcon(gi.Path);
                     allIconList.Images.Add(icon);
                 }
@@ -293,7 +299,7 @@ namespace erlauncher
                 foreach (var g in cgiForm.newGameList)
                 {
                     allIconList.Images.Add(Icon.ExtractAssociatedIcon(g.Path));
-                    g.id = idx++;
+                    g.Id = idx++;
                     GameList.Add(g);
                 }
                 FolderList.Find(x => x.Name == BaseFolderName).GameList = GameList;
@@ -302,7 +308,7 @@ namespace erlauncher
             }
         }
 
-        private async void MinusButton_Click(object sender, EventArgs e)
+        private void MinusButton_Click(object sender, EventArgs e)
         {
             groupTree.CheckBoxes = true;
             listView1.CheckBoxes = true;
@@ -463,13 +469,13 @@ namespace erlauncher
             {
                 foreach (var fi in FolderList)
                 {
-                    fi.GameList.RemoveAll(x => x.id == gameid);
+                    fi.GameList.RemoveAll(x => x.Id == gameid);
                 }
             }
             //フォルダから削除
             else
             {
-                targetFolder.GameList.RemoveAll(x => x.id == gameid);
+                targetFolder.GameList.RemoveAll(x => x.Id == gameid);
             }
         }
         private void removeGame(List<GameInfo> rmGameList)
@@ -493,7 +499,7 @@ namespace erlauncher
                 selectedGamePathLabel.Text = (string)listView1.SelectedItems[0].Tag;
                 screenShotPanel.Visible = true;
 
-                var largeImagePath = GameList.Find(x => x.id == listView1.SelectedItems[0].ImageIndex).imagepath;
+                var largeImagePath = GameList.Find(x => x.Id == listView1.SelectedItems[0].ImageIndex).ImagePath;
                 var scDir = $"{ScreenShotsDir}\\{listView1.SelectedItems[0].Text}";
                 thumbList.Clear();
                 if (Directory.Exists(scDir))
@@ -509,9 +515,14 @@ namespace erlauncher
                         else
                         {
                             selectedThumbIndex = thumbList.FindIndex(x => x.FilePath == largeImagePath);
-                            if (selectedThumbIndex > 0)
+                            if (selectedThumbIndex >= 0 && selectedThumbIndex < thumbList.Count)
                             {
                                 largeImagePath = thumbList[selectedThumbIndex].FilePath;
+                            }
+                            else
+                            {
+                                selectedThumbIndex = 0;
+                                largeImagePath = thumbList[0].FilePath;
                             }
                         }
                     }
@@ -535,18 +546,30 @@ namespace erlauncher
                     label2.Visible = true;
                 }
                 
-                var canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height);
-                var g = Graphics.FromImage(canvas);
-                
-                var src = (largeImagePath == null) ?
-                    listView1.SmallImageList.Images[listView1.SelectedItems[0].ImageIndex]
-                    : Image.FromFile(largeImagePath);
-                var f = Math.Min((float)canvas.Width / src.Width, (float)canvas.Height / src.Height);
-                var sx = Math.Abs((canvas.Width - src.Width * f) / 2.0f);
-                var sy = Math.Abs((canvas.Height - src.Height * f) / 2.0f);
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                g.DrawImage(src, sx, sy, src.Width * f, src.Height * f);
-                pictureBox1.Image = canvas;
+                using (var canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height))
+                using (var g = Graphics.FromImage(canvas))
+                {
+                    Image src = null;
+                    try
+                    {
+                        src = (largeImagePath == null) ?
+                            listView1.SmallImageList.Images[listView1.SelectedItems[0].ImageIndex]
+                            : Image.FromFile(largeImagePath);
+                        var f = Math.Min((float)canvas.Width / src.Width, (float)canvas.Height / src.Height);
+                        var sx = Math.Abs((canvas.Width - src.Width * f) / 2.0f);
+                        var sy = Math.Abs((canvas.Height - src.Height * f) / 2.0f);
+                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(src, sx, sy, src.Width * f, src.Height * f);
+                        pictureBox1.Image = new Bitmap(canvas);
+                    }
+                    finally
+                    {
+                        if (src != null && largeImagePath != null)
+                        {
+                            src.Dispose();
+                        }
+                    }
+                }
                 
                 float limWidth = 400;
                 float width = defaultFontSize * Title.Text.Length;
@@ -576,10 +599,10 @@ namespace erlauncher
         {
             if (openImageFileDialog.ShowDialog() == DialogResult.OK)
             {
-                GameList.Find(x => x.id == listView1.SelectedItems[0].ImageIndex).imagepath= openImageFileDialog.FileName;
+                GameList.Find(x => x.Id == listView1.SelectedItems[0].ImageIndex).ImagePath= openImageFileDialog.FileName;
                 var canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height);
                 var g = Graphics.FromImage(canvas);
-                var largeImagePath = GameList.Find(x => x.id == listView1.SelectedItems[0].ImageIndex).imagepath;
+                var largeImagePath = GameList.Find(x => x.Id == listView1.SelectedItems[0].ImageIndex).ImagePath;
                 var src = Image.FromFile(largeImagePath);
                 var f = Math.Min((float)canvas.Width / src.Width, (float)canvas.Height / src.Height);
                 var sx = Math.Abs((canvas.Width - src.Width * f) / 2.0f);
@@ -592,10 +615,10 @@ namespace erlauncher
 
         private void setLargeImage(string path)
         {
-            GameList.Find(x => x.Path == selectedGamePathLabel.Text).imagepath = path;
+            GameList.Find(x => x.Path == selectedGamePathLabel.Text).ImagePath = path;
             var canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height);
             var g = Graphics.FromImage(canvas);
-            var largeImagePath = GameList.Find(x => x.Path == selectedGamePathLabel.Text).imagepath;
+            var largeImagePath = GameList.Find(x => x.Path == selectedGamePathLabel.Text).ImagePath;
             var src = Image.FromFile(largeImagePath);
             var f = Math.Min((float)canvas.Width / src.Width, (float)canvas.Height / src.Height);
             var sx = Math.Abs((canvas.Width - src.Width * f) / 2.0f);
@@ -612,16 +635,16 @@ namespace erlauncher
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
                 var path = openFileDialog1.FileName;
-                var selectedGameInfo = GameList.Find(x => x.displayName == Title.Text);
+                var selectedGameInfo = GameList.Find(x => x.DisplayName == Title.Text);
                 selectedGameInfo.Path = path;
                 selectedGamePathLabel.Text = path;
 
-                allIconList.Images[selectedGameInfo.id] = (Image)(new Bitmap(Icon.ExtractAssociatedIcon(path).ToBitmap(), allIconList.ImageSize));
-                if (selectedGameInfo.imagepath == null)
+                allIconList.Images[selectedGameInfo.Id] = (Image)(new Bitmap(Icon.ExtractAssociatedIcon(path).ToBitmap(), allIconList.ImageSize));
+                if (selectedGameInfo.ImagePath == null)
                 {
                     var canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height);
                     var g = Graphics.FromImage(canvas);
-                    var src = listView1.SmallImageList.Images[selectedGameInfo.id];
+                    var src = listView1.SmallImageList.Images[selectedGameInfo.Id];
                     var f = Math.Min((float)canvas.Width / src.Width, (float)canvas.Height / src.Height);
                     var sx = Math.Abs((canvas.Width - src.Width * f) / 2.0f);
                     var sy = Math.Abs((canvas.Height - src.Height * f) / 2.0f);
@@ -648,10 +671,12 @@ namespace erlauncher
 
         private struct RECT
         {
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
             public int Left;
             public int Top;
             public int Right;
             public int Bottom;
+#pragma warning restore CS0649
             public Size Size
             {
                 get { return new Size(Right - Left, Bottom - Top); }
@@ -662,6 +687,9 @@ namespace erlauncher
         private static extern bool PrintWindow(IntPtr hwnd, IntPtr hDC, uint nFlags);
         [DllImport("User32.dll")]
         private static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow(); // 追加
         private void screenShotEvent(object sender, KeyEventArg e)
         {
             //F12:0x7b
@@ -670,35 +698,58 @@ namespace erlauncher
             {
                 try
                 {
-                    var scDir = $"{ScreenShotsDir}\\{playingGame.displayName}";
-                    if (!Directory.Exists(scDir))
+                    // ゲームプロセスのメインウィンドウハンドルを取得
+                    IntPtr gameWindowHandle = gameProcess.MainWindowHandle;
+
+                    // メインウィンドウハンドルが取得できない場合はアクティブなウィンドウを使用
+                    if (gameWindowHandle == IntPtr.Zero)
                     {
-                        Directory.CreateDirectory(scDir);
+                        gameWindowHandle = GetForegroundWindow();
                     }
 
-                    var handle = gameProcess.MainWindowHandle;
-                    var rec = new RECT();
-                    GetClientRect(handle, out rec);
-
-                    var img = new Bitmap(rec.Right - rec.Left, rec.Bottom - rec.Top);
-                    using (var g = Graphics.FromImage(img))
+                    // Models.GameInfoに変換（playingGameがerlauncher.GameInfoの場合）
+                    var gameInfo = new erlauncher.Models.GameInfo
                     {
-                        IntPtr dc = g.GetHdc();
-                        PrintWindow(handle, dc, 1);
-                        g.ReleaseHdc(dc);
-                        g.Dispose();
-                    }
+                        DisplayName = playingGame.DisplayName,
+                        Path = playingGame.Path
+                    };
 
-                    var date = DateTime.Now.ToString("yyyyMMddHHmmss");
-                    img.Save($"{scDir}\\{date}.png");
-                    thumbList.Clear();
-                    screenShotPanel.Visible = true;
-                    LoadThumbnail(scDir);
-                    pictureBox2.Invalidate();
-                }catch(Exception err)
-                {
-                    MessageBox.Show($"スクリーンショットの取得に失敗しました。\n{err.Message}","エラー", MessageBoxButtons.OK,MessageBoxIcon.Error);
+                    // スクリーンショットサービスを呼び出す（新しいオーバーロード使用）
+                    var screenshotService = new Services.ScreenshotService();
+                    screenshotService.CaptureScreenshot(gameWindowHandle, gameInfo);
+
+                    // サムネイル表示を更新
+                    RefreshThumbnails();
                 }
+                catch (Exception err)
+                {
+                    MessageBox.Show($"スクリーンショットの取得に失敗しました。\n{err.Message}", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// サムネイル表示を更新します
+        /// </summary>
+        private void RefreshThumbnails()
+        {
+            if (playingGame == null) return;
+
+            try
+            {
+                // PathUtilityを使用してゲームのスクリーンショットフォルダパスを取得
+                string scDir = erlauncher.Utils.PathUtility.GetGameScreenshotFolderPath(playingGame.DisplayName);
+                
+                // サムネイルリストをクリアして再読み込み
+                thumbList.Clear();
+                screenShotPanel.Visible = true;
+                LoadThumbnail(scDir);
+                pictureBox2.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                // エラーが発生した場合はログに記録
+                System.Diagnostics.Debug.WriteLine($"RefreshThumbnails error: {ex.Message}");
             }
         }
         //const int ThumbWidth = 150;
@@ -760,7 +811,7 @@ namespace erlauncher
         }
 
         private void pictureBox2_MouseDown(object sender, MouseEventArgs e)
-        {
+        {   
             int itemIndex = (e.Location.X + hScrollBar1.Value) / ItemWidth;
             if (itemIndex < thumbList.Count)
             {
@@ -777,9 +828,7 @@ namespace erlauncher
 
         private void pictureBox2_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
         {
-            //delete:0x2e
-            MessageBox.Show("presse");
-            MessageBox.Show(e.KeyCode.ToString());
+            // Delete key handling removed - functionality not implemented
         }
 
         private void toolStripMenuItem2_Click(object sender, EventArgs e)
@@ -793,8 +842,10 @@ namespace erlauncher
             LoadThumbnail(scDir);
             if (thumbList.Count > 0)
             {
-                if (selectedThumbIndex > 0)
-                    --selectedThumbIndex;
+                if (selectedThumbIndex >= thumbList.Count)
+                    selectedThumbIndex = thumbList.Count - 1;
+                if (selectedThumbIndex < 0)
+                    selectedThumbIndex = 0;
                 setLargeImage(thumbList[selectedThumbIndex].FilePath);
             }
             else
@@ -817,7 +868,7 @@ namespace erlauncher
 
         private void ToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            var imagepath = GameList.Find(x => x.Path == selectedGamePathLabel.Text).imagepath;
+            var imagepath = GameList.Find(x => x.Path == selectedGamePathLabel.Text).ImagePath;
             var tweetForm = new TweetForm(tweetManager, imagepath);
             tweetForm.ShowDialog();
         }
@@ -880,28 +931,28 @@ namespace erlauncher
 
         private void listView1_AfterLabelEdit(object sender, LabelEditEventArgs e)
         {
-            GameList.Find(x => x.id == listView1.SelectedItems[0].ImageIndex).displayName = e.Label;
+            GameList.Find(x => x.Id == listView1.SelectedItems[0].ImageIndex).DisplayName = e.Label;
             Title.Text = e.Label;
         }
 
         private void GameInfoChangeItem_Click(object sender, EventArgs e)
         {
-            var nowPath = GameList.Find(x => x.id == listView1.SelectedItems[0].ImageIndex).Path;
+            var nowPath = GameList.Find(x => x.Id == listView1.SelectedItems[0].ImageIndex).Path;
             openFileDialog1.FileName = Path.GetFileName(nowPath);
             openFileDialog1.InitialDirectory = Path.GetDirectoryName(nowPath);
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
                 var path = openFileDialog1.FileName;
-                var selectedGameInfo = GameList.Find(x => x.displayName == Title.Text);
+                var selectedGameInfo = GameList.Find(x => x.DisplayName == Title.Text);
                 selectedGameInfo.Path = path;
                 selectedGamePathLabel.Text = path;
 
-                allIconList.Images[selectedGameInfo.id] = (Image)(new Bitmap(Icon.ExtractAssociatedIcon(path).ToBitmap(), allIconList.ImageSize));
-                if (selectedGameInfo.imagepath == null)
+                allIconList.Images[selectedGameInfo.Id] = (Image)(new Bitmap(Icon.ExtractAssociatedIcon(path).ToBitmap(), allIconList.ImageSize));
+                if (selectedGameInfo.ImagePath == null)
                 {
                     var canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height);
                     var g = Graphics.FromImage(canvas);
-                    var src = listView1.SmallImageList.Images[selectedGameInfo.id];
+                    var src = listView1.SmallImageList.Images[selectedGameInfo.Id];
                     var f = Math.Min((float)canvas.Width / src.Width, (float)canvas.Height / src.Height);
                     var sx = Math.Abs((canvas.Width - src.Width * f) / 2.0f);
                     var sy = Math.Abs((canvas.Height - src.Height * f) / 2.0f);

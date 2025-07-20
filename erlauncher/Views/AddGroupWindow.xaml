@@ -1,0 +1,25 @@
+<!-- AddGroupWindow.xaml: グループ追加ビュー -->
+<Window x:Class="erlauncher.Views.AddGroupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:erlauncher.ViewModels"
+        Title="Add Group" Height="200" Width="400">
+    <!-- DataContext に AddGroupViewModel を設定 -->
+    <Window.DataContext>
+        <vm:AddGroupViewModel />
+    </Window.DataContext>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <!-- 新しいグループ名入力 -->
+        <TextBox Grid.Row="0" Text="{Binding NewGroupName}" Margin="5" />
+        <!-- ボタン操作 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
+            <Button Content="Add" Command="{Binding AddGroupCommand}" Margin="5"/>
+            <Button Content="Cancel" Command="{Binding CancelCommand}" Margin="5"/>
+        </StackPanel>
+    </Grid>
+</Window>

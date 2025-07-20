@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-
+using erlauncher.Models;
 namespace erlauncher
 {
     public partial class createGameInfoForm : Form
@@ -32,7 +32,7 @@ namespace erlauncher
             listView1.Items.Clear();
             foreach (var g in newGameList)
             {
-                string[] row = { g.displayName, g.Path };
+                string[] row = { g.DisplayName, g.Path };
                 var item = new ListViewItem(row);
                 listView1.Items.Add(item);
             }
@@ -88,7 +88,7 @@ namespace erlauncher
             if (e.Label != null)
             {
                 var path = listView1.SelectedItems[0].SubItems[1].Text;
-                newGameList.Find(x => x.Path == path).displayName = e.Label;
+                newGameList.Find(x => x.Path == path).DisplayName = e.Label;
             }
         }
 

@@ -8,7 +8,7 @@ using System.Drawing;
 
 namespace erlauncher
 {
-    class ScreenShotInfo
+    public class ScreenShotInfo
     {
         public string FilePath { get; private set; }
         public Image Thumbnail { get; private set; }

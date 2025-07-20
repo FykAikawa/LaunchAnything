@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using erlauncher.Models;
+using Microsoft.Practices.ServiceLocation;
 
 namespace erlauncher
 {
@@ -34,7 +36,7 @@ namespace erlauncher
             }
             foreach(var gi in m_allGameList)
             {
-                checkedListBox1.Items.Add(gi.displayName);
+                checkedListBox1.Items.Add(gi.DisplayName);
             }
 
             if (folderList.Count < 2)
@@ -64,7 +66,7 @@ namespace erlauncher
                     var gl = m_FolderList.Find(x => x.Name == newGroupName).GameList;
                     foreach (var g in m_allGameList)
                     {
-                        checkedListBox1.SetItemChecked(g.id, gl.Exists(x => x.id == g.id));
+                        checkedListBox1.SetItemChecked(g.Id, gl.Exists(x => x.Id == g.Id));
                     }
                 }
                 else
@@ -92,7 +94,7 @@ namespace erlauncher
             targetFolder.GameList.Clear();
             foreach (var name in checkedListBox1.CheckedItems)
             {
-                targetFolder.GameList.Add(m_allGameList.Find(x => x.displayName == name));
+                targetFolder.GameList.Add(m_allGameList.Find(x => x.DisplayName == (string)name));
             }
             this.Close();
         }
@@ -112,7 +114,7 @@ namespace erlauncher
             for (int i = 0; i < items.Count; ++i)
             {
                 string gName = items[i].ToString();
-                checkedListBox1.SetItemChecked(i, selectedFolderGamelist.Exists(x => x.displayName == gName));
+                checkedListBox1.SetItemChecked(i, selectedFolderGamelist.Exists(x => x.DisplayName == gName));
             }
             //foreach(var g in m_allGameList)
             //{
